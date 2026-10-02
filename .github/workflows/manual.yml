@@ -9,6 +9,9 @@ jobs:
   run:
     runs-on: ubuntu-latest
 
+    env:
+      MIGHTPULSE_API_KEY: ${{ secrets.MIGHTPULSE_API_KEY }}
+
     steps:
       - uses: actions/checkout@v4
 
