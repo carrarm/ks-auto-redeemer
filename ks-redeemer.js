@@ -1,6 +1,6 @@
 // const allianceRoster = require('./ks-alliance-roster.json');
 
-const mightpulseApiKey = process.argv[2];
+const mightpulseApiKey = process.env.MIGHTPULSE_API_KEY;
 const mightpulseBaseApi = 'https://api.mightpulse.com/v1';
 
 const kingdomId = 2363;
