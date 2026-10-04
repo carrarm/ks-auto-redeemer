@@ -1,8 +1,7 @@
+import allianceRoster from './ks-alliance-roster.json' with { type: 'json' };
 import { getAllianceMembers, getGiftCodes, redeemGiftCode } from "./ks-api.js";
+import { parseGiftCodes } from "./ks-net-parser.js";
 import { logger } from "./logger.js";
-import allianceRoster from './ks-alliance-roster.json' with { type: "json" };
-
-const ROSTER = allianceRoster;
 
 /**
  * Redeem gift codes for all members of an alliance.
@@ -50,11 +49,14 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster)
 
 async function run() {
 
-  let allianceRoster = [];
-
   const params = readParams();
 
-  let giftCodes = params.codes || await getGiftCodes();
+  logger.sectionTitle('Gift codes');
+  let giftCodes = params.codes || await loadGiftCodes();
+  if (params.ignoredCodes) {
+    console.log(`Ignoring codes: ${params.ignoredCodes.join(', ')}`);
+    giftCodes = filterCodes(giftCodes, params.ignoredCodes);
+  }
   if (giftCodes.length) {
     console.log(`Gift codes: ${giftCodes.join(', ')}\n`);
   } else {
@@ -70,7 +72,7 @@ async function run() {
   let players = undefined;
   if (params.testMode) {
     console.log('Running in test mode');
-    players = ROSTER.members.map((user) => ({ player: user.nick_name, id: user.governor_id }));
+    players = allianceRoster.members.map((user) => ({ player: user.nick_name, id: user.governor_id }));
   }
 
   const allianceTags = params.alliances;
@@ -128,8 +130,8 @@ async function redeemCodes(codes, player, id) {
   return { redeemed: success, invalid: invalidCodes, errors };
 }
 
-function filterCodes(allCodes, invalidCodes) {
-  return allCodes.filter((code) => !invalidCodes.includes(code));
+function filterCodes(allCodes, ignoredCodes) {
+  return allCodes.filter((code) => !ignoredCodes.includes(code));
 }
 
 function sleep(ms) {
@@ -164,6 +166,7 @@ function readParams() {
     alliances: argsMap['--alliances']?.split(','),
     kingdomId: Number(argsMap['--kid']),
     checkCodes: argsMap['--check-codes'],
+    ignoredCodes: argsMap['--ignored-codes']?.split(','),
   }
 }
 
@@ -174,7 +177,23 @@ function usage() {
   [--test]: Run in test mode (use local roster file)
   [--codes]: Gift codes to redeem (comma-separated). If missing, codes will be retrieved from kingshot.net
   [--check-codes]: Check the available gift codes (no redemption)
+  [--ignored-codes]: Long-term codes that should be ignored (comma-separated)
   [--help]: Show this help message
   `);
   process.exit(0);
+}
+
+async function loadGiftCodes() {
+  try {
+    const ksParsedCodes = await parseGiftCodes();
+    console.log('Loaded gift codes from kingshot.net');
+    return ksParsedCodes;
+  } catch (e) {
+    console.error('Error parsing gift codes from kingshot.net', e);
+  }
+
+  const apiGiftCodes = await getGiftCodes();
+  console.log('Loaded gift codes from kingshot API');
+
+  return apiGiftCodes;
 }

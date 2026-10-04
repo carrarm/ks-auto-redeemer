@@ -1,0 +1,22 @@
+{
+  "name": "ks-auto-redeemer",
+  "version": "1.0.0",
+  "description": "Kingshot gift code redeemer",
+  "main": "ks-redeemer.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carrarm/ks-auto-redeemer.git"
+  },
+  "author": "CarrmDev",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/carrarm/ks-auto-redeemer/issues"
+  },
+  "homepage": "https://github.com/carrarm/ks-auto-redeemer#readme",
+  "dependencies": {
+    "cheerio": "^1.2.0"
+  }
+}

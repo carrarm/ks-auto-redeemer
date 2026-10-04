@@ -5,6 +5,7 @@
  * @property {boolean} testMode - Run from the local roster file
  * @property {boolean} checkCodes - Check the available gift codes (no redemption)
  * @property {string[] | undefined} codes - Codes to redeem (if empty, codes will be retrieved from kingshot.net)
+ * @property {string[] | undefined} ignoredCodes - Long-term codes that should be ignored (comma-separated)
  * @property {string[] | undefined} alliances - Alliance tags (3 letters tag)
  * @property {number} kingdomId - Kingdom ID
  */
