@@ -14,6 +14,8 @@ import { logger } from "./logger.js";
 async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster) {
   logger.sectionTitle(`Alliance ${allianceTag}`);
 
+  console.log('Loading alliance members...');
+
   const allianceMembers = roster || await getAllianceMembers(kingdomId, allianceTag);
 
   if (!allianceMembers.length) {
@@ -150,7 +152,11 @@ function readParams() {
   const booleanArgs = ['--help', '--test', '--check-codes'];
   args.forEach(arg => {
     const [key, value] = arg.split('=');
-    argsMap[key] = value || undefined;
+    if (typeof value === 'string') {
+      argsMap[key] = value.trim() || undefined;
+    } else {
+      argsMap[key] = value;
+    }
     if (booleanArgs.includes(key)) {
       argsMap[key] = true;
     }
