@@ -68,10 +68,10 @@ export async function redeemGiftCode(code, playerId) {
     }).then((resp) => resp.json());
 
     result.success = redeemResponse.status === 'success';
-    result.invalid = redeemResponse.meta.errorKey === 'GIFT_CODE_MAX_USE_REACHED';
+    result.invalid = redeemResponse.meta?.errorKey === 'GIFT_CODE_MAX_USE_REACHED';
 
     if (!ignoredErrorCodes.includes(redeemResponse.meta.errorKey)) {
-      result.message = redeemResponse.message;
+      result.message = `${redeemResponse.message} [${redeemResponse.meta?.errorKey ?? 'unknown'}]`;
     }
   } catch (e) {
     console.error('Unexpected error while redeeming code', e);
