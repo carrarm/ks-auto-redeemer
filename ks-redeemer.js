@@ -35,7 +35,11 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster)
       console.log(`These codes were invalid (expired, max redeem reached, ...) and will be ignored for the remaining users: ${invalid.join(', ')}`)
     }
     if (errors.length) {
-      console.log(`Redemption errors: ${errors.join(', ')}`)
+      console.log(`Redemption errors: ${errors.join(', ')}`);
+      if (errors.some(e => e.includes('Too many redemption attempts'))) {
+        console.log('Waiting 5 seconds before moving to the next user...');
+        await sleep(5000);
+      }
     }
     if (redeemed.length) {
       usersWithRedemption.push(player);

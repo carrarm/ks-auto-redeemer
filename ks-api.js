@@ -70,7 +70,7 @@ export async function redeemGiftCode(code, playerId) {
     result.success = redeemResponse.status === 'success';
     result.invalid = redeemResponse.meta?.errorKey === 'GIFT_CODE_MAX_USE_REACHED';
 
-    if (!ignoredErrorCodes.includes(redeemResponse.meta.errorKey)) {
+    if (!ignoredErrorCodes.includes(redeemResponse.meta?.errorKey)) {
       result.message = `${redeemResponse.message} [${redeemResponse.meta?.errorKey ?? 'unknown'}]`;
     }
   } catch (e) {
