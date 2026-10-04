@@ -150,7 +150,7 @@ function readParams() {
   const booleanArgs = ['--help', '--test', '--check-codes'];
   args.forEach(arg => {
     const [key, value] = arg.split('=');
-    argsMap[key] = value;
+    argsMap[key] = value || undefined;
     if (booleanArgs.includes(key)) {
       argsMap[key] = true;
     }

@@ -6,6 +6,7 @@ on:
       ignoredCodes:
         description: 'Codes to ignore'
         required: false
+        default: 'Kingshot888,VIP777'
       withCodes:
         description: 'Codes to redeem (will replace codes fetched from API)'
         required: false
