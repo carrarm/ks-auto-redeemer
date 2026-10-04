@@ -52,8 +52,8 @@ async function run() {
   const params = readParams();
 
   logger.sectionTitle('Gift codes');
-  let giftCodes = params.codes || await loadGiftCodes();
-  if (params.ignoredCodes) {
+  let giftCodes = params.codes.length ? params.codes : await loadGiftCodes();
+  if (params.ignoredCodes.length) {
     console.log(`Ignoring codes: ${params.ignoredCodes.join(', ')}`);
     giftCodes = filterCodes(giftCodes, params.ignoredCodes);
   }
@@ -76,7 +76,7 @@ async function run() {
   }
 
   const allianceTags = params.alliances;
-  if (!allianceTags) {
+  if (!allianceTags.length) {
     console.log('No alliances specified. Exiting.');
     usage();
   }
@@ -162,11 +162,11 @@ function readParams() {
 
   return {
     testMode: argsMap['--test'],
-    codes: argsMap['--codes']?.split(','),
-    alliances: argsMap['--alliances']?.split(','),
+    codes: argsMap['--codes']?.split(',') ?? [],
+    alliances: argsMap['--alliances']?.split(',') ?? [],
     kingdomId: Number(argsMap['--kid']),
     checkCodes: argsMap['--check-codes'],
-    ignoredCodes: argsMap['--ignored-codes']?.split(','),
+    ignoredCodes: argsMap['--ignored-codes']?.split(',') ?? [] ,
   }
 }
 

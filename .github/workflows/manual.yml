@@ -1,9 +1,22 @@
-name: Daily redeem
+name: Manual redeem
 
 on:
-  schedule:
-    - cron: '0 4 * * *' # 8h en France en heure d'été
   workflow_dispatch:
+    inputs:
+      ignoredCodes:
+        description: 'Codes to ignore'
+        required: false
+      withCodes:
+        description: 'Codes to redeem (will replace codes fetched from API)'
+        required: false
+      alliances:
+        description: 'Alliances to redeem for'
+        required: false
+        default: 'FRA,emr'
+      kingdomId:
+        description: 'Kingdom ID of the alliances'
+        required: false
+        default: '2363'
 
 jobs:
   run:
@@ -19,4 +32,6 @@ jobs:
         with:
           node-version: 24
 
-      - run: node ks-redeemer.js
+      - run: |
+          npm ci
+          node ks-redeemer.js --alliances=${{ github.event.inputs.alliances }} --kid=${{ github.event.inputs.kingdomId }} --ignored-codes=${{ github.event.inputs.ignoredCodes }} --codes=${{ github.event.inputs.withCodes }}
