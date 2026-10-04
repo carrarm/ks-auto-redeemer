@@ -1,60 +1,92 @@
-// const allianceRoster = require('./ks-alliance-roster.json');
+import { getAllianceMembers, getGiftCodes, redeemGiftCode } from "./ks-api.js";
+import { logger } from "./logger.js";
+import allianceRoster from './ks-alliance-roster.json' with { type: "json" };
 
-const mightpulseApiKey = process.env.MIGHTPULSE_API_KEY;
-const mightpulseBaseApi = 'https://api.mightpulse.com/v1';
+const ROSTER = allianceRoster;
 
-const kingdomId = 2363;
+/**
+ * Redeem gift codes for all members of an alliance.
+ *
+ * @param {number} kingdomId - Kingdom ID
+ * @param {string} allianceTag - 3 letters alliance tag
+ * @param {string[]} giftCodes - Codes to redeem
+ * @param {Player[]} roster - Alliance roster (optional - for test purposes)
+ */
+async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster) {
+  logger.sectionTitle(`Alliance ${allianceTag}`);
 
-const allianceTags = ['FRA', 'emr'];
+  const allianceMembers = roster || await getAllianceMembers(kingdomId, allianceTag);
 
-const headers = {
-  method: 'GET',
-  headers: {
-    'Authorization': `Bearer ${mightpulseApiKey}`,
-    'Content-Type': 'application/json'
-  }
-}
-
-async function redeemCodesForAlliance(allianceTag) {
-  let giftCodes = await getGiftCodes();
-  if (!giftCodes.length) {
-    console.log('No code to redeem');
+  if (!allianceMembers.length) {
+    console.log('No members found for this alliance');
     return;
   }
 
-  const allianceMembers = await getAllianceMembers(allianceTag);
-
   console.log(`${allianceMembers.length} members found for alliance ${allianceTag} [Kingdom ${kingdomId}]\n`);
 
-  const usersWithRedeem = [];
-
-  console.log(`Gift codes: ${giftCodes.join(', ')}\n`);
+  const usersWithRedemption = [];
 
   for (const { player, id } of allianceMembers) {
-    const { redeemed, invalid } = await redeemCodes(giftCodes, player, id);
-    giftCodes = filterCodes(giftCodes, invalid);
-    if (redeemed.length) {
-      usersWithRedeem.push(player);
+    const { redeemed, invalid, errors } = await redeemCodes(giftCodes, player, id);
+    logger.redeemedCodes(player, redeemed);
+
+    if (invalid.length) {
+      console.log(`These codes were invalid (expired, max redeem reached, ...) and will be ignored for the remaining users: ${invalid.join(', ')}`)
     }
+    if (errors.length) {
+      console.log(`Redemption errors: ${errors.join(', ')}`)
+    }
+    if (redeemed.length) {
+      usersWithRedemption.push(player);
+    }
+
+    giftCodes = filterCodes(giftCodes, invalid);
 
     await sleep(2000);
   }
 
-  console.log('\n===================================================\n');
-
-  if (usersWithRedeem.length) {
-    console.log(`Users who redeemed at least 1 code: ${usersWithRedeem.join(', ')}`);
-  } else {
-    console.log('No gift code redeemed this time.');
-  }
+  logger.summary(usersWithRedemption);
 }
 
 async function run() {
-  for (const tag of allianceTags) {
-    await redeemCodesForAlliance(tag);
 
-    console.log('\n===================================================\n\n');
-    console.log('\n===================================================\n');
+  let allianceRoster = [];
+
+  const params = readParams();
+
+  let giftCodes = params.codes || await getGiftCodes();
+  if (giftCodes.length) {
+    console.log(`Gift codes: ${giftCodes.join(', ')}\n`);
+  } else {
+    console.log('No code to redeem');
+    process.exit(0);
+  }
+
+  if (params.checkCodes) {
+    process.exit(0);
+  }
+
+  /** @type {Player[] | undefined} */
+  let players = undefined;
+  if (params.testMode) {
+    console.log('Running in test mode');
+    players = ROSTER.members.map((user) => ({ player: user.nick_name, id: user.governor_id }));
+  }
+
+  const allianceTags = params.alliances;
+  if (!allianceTags) {
+    console.log('No alliances specified. Exiting.');
+    usage();
+  }
+
+  const kingdomId = params.kingdomId;
+  if (Number.isNaN(kingdomId)) {
+    console.log('Invalid kingdom ID. Exiting.');
+    usage();
+  }
+
+  for (const tag of allianceTags) {
+    await redeemCodesForAlliance(kingdomId, tag, giftCodes, players);
   }
 }
 
@@ -62,60 +94,38 @@ run();
 
 // INTERNAL FUNCTIONS
 
-async function getAllianceMembers(allianceTag) {
-  // return allianceRoster.members.map((user) => ({ player: user.nick_name, id: user.governor_id }));
-  const endpoint = `${mightpulseBaseApi}/alliances/${kingdomId}/${allianceTag}?include=roster`;
-  const apiResponse = await fetch(endpoint, headers).then((resp) => resp.json());
-  return apiResponse.members.map((user) => ({ player: user.nick_name, id: user.governor_id }));
-}
 
-async function getGiftCodes() {
-  const httpResponse = await fetch('https://kingshot.net/api/gift-codes').then((resp) => resp.json());
-  if (httpResponse.status === 'success') {
-    return httpResponse.data.giftCodes.map(({ code }) => code);
-  } else {
-    console.error('Unable to retrieve gift codes: ', httpResponse.message);
-    return [];
-  }
-}
-
+/**
+ * Redeem all gift codes for a given player.
+ *
+ * @param {string[]} codes - Gift codes to redeem
+ * @param {string} player - Player's nickname
+ * @param {number} id - Player's ID (governor ID)
+ * @returns {Promise<{redeemed: string[], invalid: string[], errors: string[] }>}
+ */
 async function redeemCodes(codes, player, id) {
-  console.log('===================================================');
   const errors = [];
   const success = [];
   const invalidCodes = [];
-  const ignoredErrorCodes = ['GIFT_CODE_ALREADY_REDEEMED', 'GIFT_CODE_MAX_USE_REACHED'];
+
   for (const code of codes) {
-    const payload = { giftCode: code, playerId: `${id}` };
-    try {
-      const redeemResponse = await fetch('https://kingshot.net/api/gift-codes/redeem', { method: 'POST', body: JSON.stringify(payload) }).then((resp) => resp.json());
-      if (redeemResponse.status === 'fail') {
-        if (!ignoredErrorCodes.includes(redeemResponse.meta.errorKey)) {
-          errors.push({ code, message: redeemResponse.message })
-        }
-        if (redeemResponse.meta.errorKey === 'GIFT_CODE_MAX_USE_REACHED') {
-          invalidCodes.push(code);
-        }
-      } else if (redeemResponse.status === 'success') {
-        success.push(code);
-      }
-    } catch (e) {
-      console.error('Unexpected error while redeeming code', e);
+    const redemptionResult = await redeemGiftCode(code, id);
+    if (redemptionResult.success) {
+      success.push(code);
     }
+
+    if (redemptionResult.invalid) {
+      invalidCodes.push(code);
+    }
+
+    if (redemptionResult.message) {
+      errors.push(`[code=${code}, message=${redemptionResult.message}]`)
+    }
+
+    await sleep(1000);
   }
 
-  const messages = [`Redeeming codes for ${player} [${id}]`, `Codes redeemed: ${success.join(', ') || 'None'}`];
-  if (errors.length) {
-    messages.push('Failures:');
-    errors.forEach((error) => messages.push(`- ${error.code}: ${error.message}`))
-  }
-  console.log(messages.join('\n'));
-
-  if (invalidCodes.length) {
-    console.log(`\nThese codes were invalid (expired, max redeem reached, ...) and will be ignored for the remaining users: ${invalidCodes.join(', ')}\n`)
-  }
-
-  return { redeemed: success, invalid: invalidCodes };
+  return { redeemed: success, invalid: invalidCodes, errors };
 }
 
 function filterCodes(allCodes, invalidCodes) {
@@ -124,4 +134,47 @@ function filterCodes(allCodes, invalidCodes) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Read command line arguments.
+ *
+ * @returns {ScriptOptions}
+ */
+function readParams() {
+  const args = process.argv.slice(2);
+
+  const argsMap = {};
+  const booleanArgs = ['--help', '--test', '--check-codes'];
+  args.forEach(arg => {
+    const [key, value] = arg.split('=');
+    argsMap[key] = value;
+    if (booleanArgs.includes(key)) {
+      argsMap[key] = true;
+    }
+  });
+
+  if (argsMap['--help']) {
+    usage();
+  }
+
+  return {
+    testMode: argsMap['--test'],
+    codes: argsMap['--codes']?.split(','),
+    alliances: argsMap['--alliances']?.split(','),
+    kingdomId: Number(argsMap['--kid']),
+    checkCodes: argsMap['--check-codes'],
+  }
+}
+
+function usage() {
+  console.log(`Usage:
+  --alliances: Alliance tags (3 letters tag, comma-separated)
+  --kid: Kingdom ID
+  [--test]: Run in test mode (use local roster file)
+  [--codes]: Gift codes to redeem (comma-separated). If missing, codes will be retrieved from kingshot.net
+  [--check-codes]: Check the available gift codes (no redemption)
+  [--help]: Show this help message
+  `);
+  process.exit(0);
 }
