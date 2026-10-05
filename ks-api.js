@@ -40,6 +40,11 @@ export async function getAllianceMembers(kingdomId, allianceTag) {
   /** @type {AllianceRosterResponse} */
   const apiResponse = await fetch(endpoint, mightpulseHeaders).then((resp) => resp.json());
 
+  if (apiResponse.error) {
+    console.error('Unable to retrieve alliance roster: ', apiResponse.error);
+    return [];
+  }
+
   return apiResponse.members
     // Dates are wrong
     // .filter((user) => recentlyLoggedIn(user.last_active_at))

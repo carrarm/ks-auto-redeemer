@@ -24,6 +24,7 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster)
   }
 
   console.log(`${allianceMembers.length} members found for alliance ${allianceTag} [Kingdom ${kingdomId}]\n`);
+  console.log('Redeeming codes...');
 
   const usersWithRedemption = [];
 
@@ -36,18 +37,12 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster)
     }
     if (errors.length) {
       console.log(`Redemption errors: ${errors.join(', ')}`);
-      if (errors.some(e => e.includes('Too many redemption attempts'))) {
-        console.log('Waiting 5 seconds before moving to the next user...');
-        await sleep(5000);
-      }
     }
     if (redeemed.length) {
       usersWithRedemption.push(player);
     }
 
     giftCodes = filterCodes(giftCodes, invalid);
-
-    await sleep(2000);
   }
 
   logger.summary(usersWithRedemption);
@@ -113,27 +108,36 @@ run();
  */
 async function redeemCodes(codes, player, id) {
   const errors = [];
-  const success = [];
+  const redeemedCodes = [];
   const invalidCodes = [];
 
   for (const code of codes) {
-    const redemptionResult = await redeemGiftCode(code, id);
-    if (redemptionResult.success) {
-      success.push(code);
-    }
+    let retryAttempts = 0;
+    do {
+      const redemptionResult = await redeemGiftCode(code, id);
+      if (redemptionResult.success) {
+        redeemedCodes.push(code);
+      }
 
-    if (redemptionResult.invalid) {
-      invalidCodes.push(code);
-    }
+      if (redemptionResult.invalid) {
+        invalidCodes.push(code);
+      }
 
-    if (redemptionResult.message) {
-      errors.push(`[code=${code}, message=${redemptionResult.message}]`)
-    }
+      if (redemptionResult.message) {
+        if (redemptionResult.message.includes('Too many redemption attempts')) {
+          console.log(`[${player}] Too many redemption attempts while redeeming ${code}. ${retryAttempts ? '' : 'Retrying once in 2m...'}`);
+          retryAttempts++;
+          await sleep(120000);
+        } else {
+          errors.push(`[code=${code}, message=${redemptionResult.message}]`)
+        }
+      }
 
-    await sleep(1000);
+      await sleep(5000);
+    } while (retryAttempts && retryAttempts < 2);
   }
 
-  return { redeemed: success, invalid: invalidCodes, errors };
+  return { redeemed: redeemedCodes, invalid: invalidCodes, errors };
 }
 
 function filterCodes(allCodes, ignoredCodes) {
@@ -176,7 +180,7 @@ function readParams() {
     alliances: argsMap['--alliances']?.split(',') ?? [],
     kingdomId: Number(argsMap['--kid']),
     checkCodes: argsMap['--check-codes'],
-    ignoredCodes: argsMap['--ignored-codes']?.split(',') ?? [] ,
+    ignoredCodes: argsMap['--ignored-codes']?.split(',') ?? [],
   }
 }
 

@@ -21,6 +21,7 @@
 /**
  * @typedef {Object} AllianceRosterResponse
  * @property {RosterMember[]} members - Alliance members
+ * @property {string} error - Response error, if any
  */
 
 /**
