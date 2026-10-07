@@ -3,7 +3,7 @@ name: Daily redeem
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 4 * * *' # UTC hour
+    - cron: '15 4 * * *' # UTC hour
 
 jobs:
   run:
@@ -19,6 +19,14 @@ jobs:
         with:
           node-version: 24
 
-      - run: |
+      - name: Debug schedule
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          echo "Scheduled at: ${{ github.event.schedule }}"
+          date -u
+          date
+
+      - name: Start redeem
+        run: |
           npm ci
           node ks-redeemer.js --alliances=FRA,emr --kid=2363 --ignored-codes=VIP777,Kingshot888
