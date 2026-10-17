@@ -26,7 +26,12 @@ jobs:
           date -u
           date
 
+      - name: Setup firebase
+        run: |
+          echo "${{ secrets.FIREBASE_JSON_SECRET }}" | base64 --decode > firebase/service-account-key.json 
+          echo "File service-account-key.json created"
+
       - name: Start redeem
         run: |
           npm ci
-          node ks-redeemer.js --alliances=FRA,emr --kid=2363 --ignored-codes=VIP777,Kingshot888
+          node ks-redeemer.js --alliances=FRA,emr --kid=2363 --firebase

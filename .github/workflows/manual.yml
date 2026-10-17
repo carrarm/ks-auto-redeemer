@@ -33,6 +33,12 @@ jobs:
         with:
           node-version: 24
 
-      - run: |
+      - name: Setup firebase
+        run: |
+          echo "${{ secrets.FIREBASE_JSON_SECRET }}" | base64 --decode > firebase/service-account-key.json 
+          echo "File service-account-key.json created"
+
+      - name: Start redeem
+        run: |
           npm ci
-          node ks-redeemer.js --alliances=${{ github.event.inputs.alliances }} --kid=${{ github.event.inputs.kingdomId }} --ignored-codes=${{ github.event.inputs.ignoredCodes }} --codes=${{ github.event.inputs.withCodes }}
+          node ks-redeemer.js --firebase --alliances=${{ github.event.inputs.alliances }} --kid=${{ github.event.inputs.kingdomId }} --ignored-codes=${{ github.event.inputs.ignoredCodes }} --codes=${{ github.event.inputs.withCodes }}
