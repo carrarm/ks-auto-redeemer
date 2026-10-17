@@ -9,6 +9,10 @@ Kingshot Gift code auto-redeemer. This tool automates the process of redeeming g
 - **Rate Limit Handling**: Includes basic sleep logic and retries to handle "Too many redemption attempts".
 - **Test Mode**: Support for testing using a local alliance roster JSON file.
 
+## Prerequisites
+
+TODO : firebase configuration
+
 ## Installation
 
 1. Clone the repository:

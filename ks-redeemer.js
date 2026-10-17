@@ -1,18 +1,31 @@
+import { getAllianceMembers, getGiftCodes, redeemGiftCode } from "./api/ks-api.js";
+import { parseGiftCodes } from "./api/ks-net-parser.js";
+import {
+  displaySummary,
+  getInvalidCodes,
+  getPlayerResult,
+  storeInvalidCodes,
+  storePlayerResult,
+  storeSummary
+} from "./firebase/firebase-storage.js";
+import { readParams, showUsage } from "./helpers/script-options.js";
 import allianceRoster from './ks-alliance-roster.json' with { type: 'json' };
-import { getAllianceMembers, getGiftCodes, redeemGiftCode } from "./ks-api.js";
-import { parseGiftCodes } from "./ks-net-parser.js";
-import { logger } from "./logger.js";
 
 /**
  * Redeem gift codes for all members of an alliance.
  *
  * @param {number} kingdomId - Kingdom ID
- * @param {string} allianceTag - 3 letters alliance tag
+ * @param {string} allianceTag - Alliance tag
  * @param {string[]} giftCodes - Codes to redeem
  * @param {Player[]} roster - Alliance roster (optional - for test purposes)
+ * @param {boolean} withStorage - Store script results
  */
-async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster) {
-  logger.sectionTitle(`Alliance ${allianceTag}`);
+async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster, withStorage = false) {
+  console.log('\n===================================================');
+  console.log(`===== Alliance ${allianceTag}`);
+  console.log('===================================================\n');
+
+  const startTime = Date.now();
 
   console.log('Loading alliance members...');
 
@@ -26,33 +39,56 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster)
   console.log(`${allianceMembers.length} members found for alliance ${allianceTag} [Kingdom ${kingdomId}]\n`);
   console.log('Redeeming codes...');
 
-  const usersWithRedemption = [];
+  let totalRedeemedCodes = 0;
+  const usersWithErrors = [];
+  let invalidCodes = await getInvalidCodes(giftCodes);
 
-  for (const { player, id } of allianceMembers) {
-    const { redeemed, invalid, errors } = await redeemCodes(giftCodes, player, id);
-    logger.redeemedCodes(player, redeemed);
+  for (const member of allianceMembers) {
+    giftCodes = filterCodes(giftCodes, invalidCodes);
+
+    const { redeemed, invalid, errors } = await redeemCodes(giftCodes, member, withStorage);
+
+    let redemptionText = redeemed.length ? `Redeemed: ${redeemed.join(', ')}` : 'No code redeemed';
+    if (errors.length) {
+      usersWithErrors.push(member.player);
+      redemptionText += ` | ${errors.length} failed redemption(s)`;
+      if (!withStorage) {
+        redemptionText += `: ${errors.join(', ')}}`;
+      }
+    }
+    console.log(`${member.player.padEnd(20, ' ')} - ${redemptionText}`);
+
+    totalRedeemedCodes += redeemed.length;
 
     if (invalid.length) {
+      invalidCodes = invalidCodes.concat(invalid);
       console.log(`These codes were invalid (expired, max redeem reached, ...) and will be ignored for the remaining users: ${invalid.join(', ')}`)
     }
-    if (errors.length) {
-      console.log(`Redemption errors: ${errors.join(', ')}`);
-    }
-    if (redeemed.length) {
-      usersWithRedemption.push(player);
-    }
-
-    giftCodes = filterCodes(giftCodes, invalid);
   }
 
-  logger.summary(usersWithRedemption);
+  const totalTimeMs = Date.now() - startTime;
+
+  await storeInvalidCodes(invalidCodes);
+
+  /** @type {SummaryDocument} */
+  const summary = {
+    alliance: { tag: allianceTag, id: allianceMembers[0].allianceId },
+    totalRedeemed: totalRedeemedCodes,
+    usersWithErrors,
+    lastExec: new Date().toISOString(),
+    execTime: Math.round(totalTimeMs / 1000 / 60),
+  };
+  await storeSummary(summary);
 }
 
 async function run() {
 
   const params = readParams();
 
-  logger.sectionTitle('Gift codes');
+  console.log('\n===================================================');
+  console.log(`===== Gift codes`);
+  console.log('===================================================\n');
+
   let giftCodes = params.codes.length ? params.codes : await loadGiftCodes();
   if (params.ignoredCodes.length) {
     console.log(`Ignoring codes: ${params.ignoredCodes.join(', ')}`);
@@ -79,17 +115,21 @@ async function run() {
   const allianceTags = params.alliances;
   if (!allianceTags.length) {
     console.log('No alliances specified. Exiting.');
-    usage();
+    showUsage();
   }
 
   const kingdomId = params.kingdomId;
   if (Number.isNaN(kingdomId)) {
     console.log('Invalid kingdom ID. Exiting.');
-    usage();
+    showUsage();
   }
 
   for (const tag of allianceTags) {
-    await redeemCodesForAlliance(kingdomId, tag, giftCodes, players);
+    await redeemCodesForAlliance(kingdomId, tag, giftCodes, players, params.firebase);
+  }
+
+  for (const tag of allianceTags) {
+    await displaySummary(tag);
   }
 }
 
@@ -97,47 +137,59 @@ run();
 
 // INTERNAL FUNCTIONS
 
-
 /**
  * Redeem all gift codes for a given player.
  *
  * @param {string[]} codes - Gift codes to redeem
- * @param {string} player - Player's nickname
- * @param {number} id - Player's ID (governor ID)
+ * @param {Player} player - Player
+ * @param {boolean} withStorage - Store script results
  * @returns {Promise<{redeemed: string[], invalid: string[], errors: string[] }>}
  */
-async function redeemCodes(codes, player, id) {
-  const errors = [];
+async function redeemCodes(codes, player, withStorage = false) {
   const redeemedCodes = [];
   const invalidCodes = [];
 
-  for (const code of codes) {
+  /** @type {CodeFailure[]} */
+  const failures = [];
+
+  const lastAttempt = withStorage ? await getPlayerResult(player.id) : undefined;
+  if (lastAttempt?.redeemed.length) {
+    redeemedCodes.push(...lastAttempt.redeemed);
+  }
+  const codesToRedeem = filterCodes(codes, redeemedCodes);
+
+  for (const code of codesToRedeem) {
     let retryAttempts = 0;
     do {
-      const redemptionResult = await redeemGiftCode(code, id);
+      const redemptionResult = await redeemGiftCode(code, player.id);
       if (redemptionResult.success) {
         redeemedCodes.push(code);
       }
 
       if (redemptionResult.invalid) {
         invalidCodes.push(code);
-      }
-
-      if (redemptionResult.message) {
-        if (redemptionResult.message.includes('Too many redemption attempts')) {
-          console.log(`[${player}] Too many redemption attempts while redeeming ${code}. ${retryAttempts ? '' : 'Retrying once in 2m...'}`);
+      } else if (redemptionResult.errorCode) {
+        if (redemptionResult.message?.includes('Too many redemption attempts')) {
+          console.log(`[${player.player}] Too many redemption attempts while redeeming ${code}. ${retryAttempts ? '' : 'Retrying once in 2m...'}`);
           retryAttempts++;
           await sleep(120000);
         } else {
-          errors.push(`[code=${code}, message=${redemptionResult.message}]`)
+          failures.push({ giftCode: code, errorCode: redemptionResult.errorCode, message: redemptionResult.message });
         }
       }
+
 
       await sleep(5000);
     } while (retryAttempts && retryAttempts < 2);
   }
 
-  return { redeemed: redeemedCodes, invalid: invalidCodes, errors };
+  if (withStorage) {
+    await storePlayerResult(player, codesToRedeem, redeemedCodes, failures);
+  }
+
+  const redeemedToday = lastAttempt?.redeemed ? redeemedCodes.filter((code) => !lastAttempt.redeemed.includes(code)) : redeemedCodes;
+  const errorMessages = failures.map(({ giftCode, errorCode, message }) => `[${giftCode} - ${errorCode}: ${message}]`);
+  return { redeemed: redeemedToday, invalid: invalidCodes, errors: errorMessages };
 }
 
 function filterCodes(allCodes, ignoredCodes) {
@@ -146,55 +198,6 @@ function filterCodes(allCodes, ignoredCodes) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Read command line arguments.
- *
- * @returns {ScriptOptions}
- */
-function readParams() {
-  const args = process.argv.slice(2);
-
-  const argsMap = {};
-  const booleanArgs = ['--help', '--test', '--check-codes'];
-  args.forEach(arg => {
-    const [key, value] = arg.split('=');
-    if (typeof value === 'string') {
-      argsMap[key] = value.trim() || undefined;
-    } else {
-      argsMap[key] = value;
-    }
-    if (booleanArgs.includes(key)) {
-      argsMap[key] = true;
-    }
-  });
-
-  if (argsMap['--help']) {
-    usage();
-  }
-
-  return {
-    testMode: argsMap['--test'],
-    codes: argsMap['--codes']?.split(',') ?? [],
-    alliances: argsMap['--alliances']?.split(',') ?? [],
-    kingdomId: Number(argsMap['--kid']),
-    checkCodes: argsMap['--check-codes'],
-    ignoredCodes: argsMap['--ignored-codes']?.split(',') ?? [],
-  }
-}
-
-function usage() {
-  console.log(`Usage:
-  --alliances: Alliance tags (3 letters tag, comma-separated)
-  --kid: Kingdom ID
-  [--test]: Run in test mode (use local roster file)
-  [--codes]: Gift codes to redeem (comma-separated). If missing, codes will be retrieved from kingshot.net
-  [--check-codes]: Check the available gift codes (no redemption)
-  [--ignored-codes]: Long-term codes that should be ignored (comma-separated)
-  [--help]: Show this help message
-  `);
-  process.exit(0);
 }
 
 async function loadGiftCodes() {

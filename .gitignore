@@ -1,2 +1,4 @@
 .idea/
 node_modules/
+*.log
+firebase/service-account-key.json

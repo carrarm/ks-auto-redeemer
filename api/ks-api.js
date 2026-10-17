@@ -9,6 +9,8 @@ const mightpulseHeaders = {
   }
 }
 
+const INVALID_ERROR_CODES = ['GIFT_CODE_EXPIRED', 'GIFT_CODE_MAX_USE_REACHED'];
+
 /**
  * Get the currently available gift codes.
  * Gift codes are retrieved from kingshot.net.
@@ -48,7 +50,7 @@ export async function getAllianceMembers(kingdomId, allianceTag) {
   return apiResponse.members
     // Dates are wrong
     // .filter((user) => recentlyLoggedIn(user.last_active_at))
-    .map((user) => ({ player: user.nick_name, id: user.governor_id }));
+    .map((user) => ({ player: user.nick_name, id: user.governor_id, allianceId: apiResponse.aid, allianceTag }));
 }
 
 /**
@@ -60,10 +62,9 @@ export async function getAllianceMembers(kingdomId, allianceTag) {
  */
 export async function redeemGiftCode(code, playerId) {
   const payload = { giftCode: code, playerId: `${playerId}` };
-  const ignoredErrorCodes = ['GIFT_CODE_ALREADY_REDEEMED', 'GIFT_CODE_MAX_USE_REACHED'];
 
   /** @type {RedeemResult} */
-  const result = { success: false, message: '', invalid: false };
+  const result = { success: false, message: '', invalid: false, errorCode: '' };
 
   try {
     /** @type {RedeemResponse} */
@@ -73,10 +74,11 @@ export async function redeemGiftCode(code, playerId) {
     }).then((resp) => resp.json());
 
     result.success = redeemResponse.status === 'success';
-    result.invalid = redeemResponse.meta?.errorKey === 'GIFT_CODE_MAX_USE_REACHED';
+    result.invalid = INVALID_ERROR_CODES.includes(redeemResponse.meta?.errorKey);
 
-    if (!result.success && !ignoredErrorCodes.includes(redeemResponse.meta?.errorKey)) {
-      result.message = `${redeemResponse.message} [${redeemResponse.meta?.errorKey ?? 'unknown'}]`;
+    if (!result.success) {
+      result.errorCode = redeemResponse.meta?.errorKey ?? 'unknown';
+      result.message = redeemResponse.message;
     }
   } catch (e) {
     console.error('Unexpected error while redeeming code', e);
