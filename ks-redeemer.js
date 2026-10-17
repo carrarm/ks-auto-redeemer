@@ -43,6 +43,8 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster,
   const usersWithErrors = [];
   let invalidCodes = await getInvalidCodes(giftCodes);
 
+  let progress = 1;
+
   for (const member of allianceMembers) {
     giftCodes = filterCodes(giftCodes, invalidCodes);
 
@@ -56,7 +58,8 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster,
         redemptionText += `: ${errors.join(', ')}}`;
       }
     }
-    console.log(`${member.player.padEnd(20, ' ')} - ${redemptionText}`);
+    const progressText = `(${progress}/${allianceMembers.length})`.padEnd(9, ' ');
+    console.log(`${progressText} ${member.player.padEnd(20, ' ')} - ${redemptionText}`);
 
     totalRedeemedCodes += redeemed.length;
 
@@ -64,6 +67,8 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster,
       invalidCodes = invalidCodes.concat(invalid);
       console.log(`These codes were invalid (expired, max redeem reached, ...) and will be ignored for the remaining users: ${invalid.join(', ')}`)
     }
+
+    progress++;
   }
 
   const totalTimeMs = Date.now() - startTime;
