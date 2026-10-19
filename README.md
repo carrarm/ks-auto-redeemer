@@ -6,12 +6,32 @@ Kingshot Gift code auto-redeemer. This tool automates the process of redeeming g
 
 - **Auto-fetching**: Automatically fetches the latest gift codes from `kingshot.net`.
 - **Alliance-wide**: Redeems codes for every player in the specified alliances.
-- **Rate Limit Handling**: Includes basic sleep logic and retries to handle "Too many redemption attempts".
+- **Rate Limit Handling**: Includes basic sleep logic and retries to handle "Too many redemption attempts."
 - **Test Mode**: Support for testing using a local alliance roster JSON file.
+- **Firebase Integration**: Store redemption results and summaries in a Firebase Firestore database to optimize the process.
 
-## Prerequisites
+## Firebase Configuration
 
-TODO : firebase configuration
+This tool can optionally store redemption results and summaries in a Firebase Firestore database.
+
+### Setup
+
+1. Create a Firebase project in the [Firebase Console](https://console.firebase.google.com/).
+2. Enable **Firestore Database** in your project.
+3. Go to **Project Settings** > **Service Accounts**.
+4. Click **Generate new private key** and download the JSON file.
+5. Rename the file to `service-account-key.json`.
+6. Place this file in the `firebase/` directory of this project.
+
+**Note:** The `service-account-key.json` file contains sensitive information and is ignored by git. You must add it manually if you wish to use Firebase features.
+
+### Deploying Rules (Optional)
+
+If you want to use the provided security rules, you can deploy them using the Firebase CLI:
+
+```bash
+firebase deploy --only firestore:rules
+```
 
 ## Installation
 
@@ -60,6 +80,7 @@ node ks-redeemer.js --kid=<kingdom_id> --alliances=<tag1,tag2> [options]
 | `--codes` | Optional. Comma-separated gift codes. If omitted, it fetches them from `kingshot.net`. |
 | `--ignored-codes` | Optional. Comma-separated codes to skip (useful for long-term codes already claimed). |
 | `--check-codes` | Optional. Only fetches and displays available codes without performing redemption. |
+| `--firebase` | Optional. Enable storing results and summaries in Firebase. Requires `service-account-key.json`. |
 | `--test` | Optional. Run in test mode using `ks-alliance-roster.json` instead of fetching members from the API. |
 | `--help` | Show the help message. |
 

@@ -78,6 +78,7 @@
  * @property {string} giftCode - Gift code
  * @property {string} errorCode - Technical error code
  * @property {string} message - Error message
+ * @property {number} failureCount - Number of times this code has been tried and failed
  */
 
 /**
@@ -87,7 +88,8 @@
  * @property {Alliance} alliance - Governor alliance
  * @property {string[]} redeemed - All codes successfully redeemed
  * @property {string[]} allCodes - All attempted redemptions
- * @property {CodeFailure} failures - Whether the code was invalid and should be ignored
+ * @property {string[]} ignoredCodes - Codes that have been failed too many times and should be skipped for this user
+ * @property {CodeFailure[]} failures - Codes that failed redemption
  * @property {string} lastExec - Last execution date
  */
 

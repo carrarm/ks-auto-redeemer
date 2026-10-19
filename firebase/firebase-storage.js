@@ -11,9 +11,10 @@ const db = getFirestore();
  * @param {Player} player - Player
  * @param {string[]} allCodes - All redeemable codes attempted
  * @param {string[]} redeemed - Redeemed codes
+ * @param {string[]} ignored - Ignored codes
  * @param {CodeFailure[]} failures - Failed redemptions
  */
-export async function storePlayerResult(player, allCodes, redeemed, failures) {
+export async function storePlayerResult(player, allCodes, redeemed, ignored, failures) {
   const redeemedCodes = [...redeemed];
 
   for (const failure of failures) {
@@ -30,6 +31,7 @@ export async function storePlayerResult(player, allCodes, redeemed, failures) {
     alliance: { id: player.allianceId, tag: player.allianceTag },
     redeemed: redeemedCodes,
     attempted: allCodes,
+    ignoredCodes: ignored,
     failures,
     lastExec: new Date().toISOString(),
   };

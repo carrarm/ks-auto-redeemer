@@ -161,7 +161,8 @@ async function redeemCodes(codes, player, withStorage = false) {
   if (lastAttempt?.redeemed.length) {
     redeemedCodes.push(...lastAttempt.redeemed);
   }
-  const codesToRedeem = filterCodes(codes, redeemedCodes);
+  const ignoredCodes = lastAttempt?.ignoredCodes ?? [];
+  const codesToRedeem = filterCodes(codes, redeemedCodes.concat(ignoredCodes));
 
   for (const code of codesToRedeem) {
     let retryAttempts = 0;
@@ -179,7 +180,12 @@ async function redeemCodes(codes, player, withStorage = false) {
           retryAttempts++;
           await sleep(120000);
         } else {
-          failures.push({ giftCode: code, errorCode: redemptionResult.errorCode, message: redemptionResult.message });
+          const previousFailure = lastAttempt?.failures?.find((failure) => failure.giftCode === code);
+          const failureCount = (previousFailure?.failureCount ?? 0) + 1;
+          failures.push({ giftCode: code, errorCode: redemptionResult.errorCode, message: redemptionResult.message, failureCount });
+          if (failureCount > 3) {
+            ignoredCodes.push(code);
+          }
         }
       }
 
@@ -189,7 +195,7 @@ async function redeemCodes(codes, player, withStorage = false) {
   }
 
   if (withStorage) {
-    await storePlayerResult(player, codesToRedeem, redeemedCodes, failures);
+    await storePlayerResult(player, codesToRedeem, redeemedCodes, ignoredCodes, failures);
   }
 
   const redeemedToday = lastAttempt?.redeemed ? redeemedCodes.filter((code) => !lastAttempt.redeemed.includes(code)) : redeemedCodes;
