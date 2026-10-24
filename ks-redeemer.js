@@ -59,7 +59,7 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster,
       }
     }
     const progressText = `(${progress}/${allianceMembers.length})`.padEnd(9, ' ');
-    console.log(`${progressText} ${member.player.padEnd(20, ' ')} - ${redemptionText}`);
+    console.log(`${progressText} [${member.id}] ${member.player.padEnd(20, ' ')} - ${redemptionText}`);
 
     totalRedeemedCodes += redeemed.length;
 
