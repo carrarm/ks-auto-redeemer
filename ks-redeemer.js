@@ -41,7 +41,7 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster,
   console.log('Redeeming codes...');
 
   let totalRedeemedCodes = 0;
-  const usersWithErrors = [];
+  const usersWithErrors = {};
   let invalidCodes = await getInvalidCodes(giftCodes);
 
   let progress = 1;
@@ -53,7 +53,7 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster,
 
     let redemptionText = redeemed.length ? `Redeemed: ${redeemed.join(', ')}` : 'No code redeemed';
     if (errors.length) {
-      usersWithErrors.push(member.player);
+      usersWithErrors[member.player] = errors;
       redemptionText += ` | ${errors.length} failed redemption(s)`;
       if (!withStorage) {
         redemptionText += `: ${errors.join(', ')}}`;

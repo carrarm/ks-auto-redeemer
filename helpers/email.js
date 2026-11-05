@@ -20,12 +20,26 @@ const transporter = nodemailer.createTransport({
 export async function sendReport(codes, report) {
   console.log(`Sending report email to ${process.env.MAIL_TO}...`);
 
+  const usersWithErrors = [];
+
   /** @type {Partial<SummaryDocument>} */
-  const mergedSummary = { totalRedeemed: 0, usersWithErrors: [], execTime: 0 };
+  const mergedSummary = { totalRedeemed: 0, usersWithErrors: {}, execTime: 0 };
   for (const [allianceTag, summary] of Object.entries(report)) {
     mergedSummary.totalRedeemed += summary.totalRedeemed;
-    mergedSummary.usersWithErrors = mergedSummary.usersWithErrors.concat(summary.usersWithErrors.map((u) => `[${allianceTag}] ${u}`));
+    for(const [username, errors] of Object.entries(summary.usersWithErrors)) {
+      usersWithErrors.push(`[${allianceTag}] ${username}: ${errors.join(', ')}`);
+    }
     mergedSummary.execTime += summary.execTime;
+  }
+
+  let errorList = '';
+  if (usersWithErrors.length) {
+    errorList = `
+    <p>Redemption errors:</p>
+    <ul>
+      ${usersWithErrors.map((error) => `<li>${error}</li>`).join('')}}
+  </ul>
+  `
   }
 
   try {
@@ -34,16 +48,14 @@ export async function sendReport(codes, report) {
       to: process.env.MAIL_TO,
       subject: `Redemption report - ${codes.length} codes - ${mergedSummary.totalRedeemed} redeemed/${mergedSummary.usersWithErrors.length} failed`,
       html: `
-<u>
+<ul>
   <li>Codes: ${codes.join(', ')}</li>
   <li>Total redeemed: ${mergedSummary.totalRedeemed}</li>
-  <li>Failed redemptions: ${mergedSummary.usersWithErrors.length} (see below if any)</li> 
+  <li>Failed redemptions: ${usersWithErrors.length} (see below if any)</li> 
   <li>Total execution time: ${mergedSummary.execTime} minutes</li>      
-</u>
+</ul>
 
-<p>
-${mergedSummary.usersWithErrors.join('<br>')}
-</p>
+${errorList}
 `,
     });
   } catch (error) {
