@@ -182,7 +182,12 @@ async function redeemCodes(codes, player, withStorage = false) {
         } else {
           const previousFailure = lastAttempt?.failures?.find((failure) => failure.giftCode === code);
           const failureCount = (previousFailure?.failureCount ?? 0) + 1;
-          failures.push({ giftCode: code, errorCode: redemptionResult.errorCode, message: redemptionResult.message, failureCount });
+          failures.push({
+            giftCode: code,
+            errorCode: redemptionResult.errorCode,
+            message: redemptionResult.message,
+            failureCount
+          });
           if (failureCount > 3) {
             ignoredCodes.push(code);
           }
@@ -212,16 +217,18 @@ function sleep(ms) {
 }
 
 async function loadGiftCodes() {
+  let giftCodes = [];
   try {
-    const ksParsedCodes = await parseGiftCodes();
-    console.log('Loaded gift codes from kingshot.net');
-    return ksParsedCodes;
+    giftCodes = await parseGiftCodes();
+    console.log(`Loaded gift codes from kingshot.net (${giftCodes.length} codes found)`);
   } catch (e) {
     console.error('Error parsing gift codes from kingshot.net', e);
   }
 
-  const apiGiftCodes = await getGiftCodes();
-  console.log('Loaded gift codes from kingshot API');
+  if (!giftCodes.length) {
+    giftCodes = await getGiftCodes();
+    console.log(`Loaded gift codes from kingshot API (${giftCodes.length} codes found)`);
+  }
 
-  return apiGiftCodes;
+  return giftCodes;
 }
