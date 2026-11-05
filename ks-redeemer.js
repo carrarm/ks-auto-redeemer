@@ -8,6 +8,7 @@ import {
   storePlayerResult,
   storeSummary
 } from "./firebase/firebase-storage.js";
+import { sendReport } from "./helpers/email.js";
 import { readParams, showUsage } from "./helpers/script-options.js";
 import allianceRoster from './ks-alliance-roster.json' with { type: 'json' };
 
@@ -84,6 +85,7 @@ async function redeemCodesForAlliance(kingdomId, allianceTag, giftCodes, roster,
     execTime: Math.round(totalTimeMs / 1000 / 60),
   };
   await storeSummary(summary);
+  return summary;
 }
 
 async function run() {
@@ -129,16 +131,20 @@ async function run() {
     showUsage();
   }
 
+  const summaries = {};
+
   for (const tag of allianceTags) {
-    await redeemCodesForAlliance(kingdomId, tag, giftCodes, players, params.firebase);
+    summaries[tag] = await redeemCodesForAlliance(kingdomId, tag, giftCodes, players, params.firebase);
   }
 
   for (const tag of allianceTags) {
     await displaySummary(tag);
   }
+
+  await sendReport(giftCodes, summaries);
 }
 
-run();
+run().then(() => console.log('Redemption done'));
 
 // INTERNAL FUNCTIONS
 

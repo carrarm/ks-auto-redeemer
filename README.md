@@ -33,6 +33,19 @@ If you want to use the provided security rules, you can deploy them using the Fi
 firebase deploy --only firestore:rules
 ```
 
+## Environment Variables
+
+The tool uses environment variables for certain features. You can define them in a `.env` file in the root directory.
+
+| Variable             | Description |
+|----------------------| --- |
+| `MIGHTPULSE_API_KEY` | **Required.** API key for the Kingshot API. |
+| `SMTP_HOST`          | Host for the SMTP server to send reports. |
+| `SMTP_PORT`          | Port for the SMTP server (defaults to `465`). |
+| `SMTP_AUTH_USER`     | Username for SMTP authentication. |
+| `SMTP_AUTH_PASSWORD` | Password for SMTP authentication. |
+| `MAIL_TO`            | Recipient email address for the redemption report. |
+
 ## Installation
 
 1. Clone the repository:

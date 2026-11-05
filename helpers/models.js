@@ -96,7 +96,7 @@
 /**
  * @typedef {Object} SummaryDocument
  * @property {Alliance} alliance - Alliance
- * @property {string} execTime - Duration in minutes
+ * @property {number} execTime - Duration in minutes
  * @property {number} totalRedeemed - Number of codes redeemed
  * @property {string[]} usersWithErrors - Users who had redemption errors
  * @property {string} lastExec - Last execution date
