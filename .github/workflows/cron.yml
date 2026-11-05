@@ -11,6 +11,11 @@ jobs:
 
     env:
       MIGHTPULSE_API_KEY: ${{ secrets.MIGHTPULSE_API_KEY }}
+      SMTP_AUTH_USER: ${{ secrets.SMTP_AUTH_USER }}
+      SMTP_AUTH_PASSWORD: ${{ secrets.SMTP_AUTH_PASSWORD }}
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 465
+      MAIL_TO: carrmdev@fastmail.com
 
     steps:
       - uses: actions/checkout@v4
