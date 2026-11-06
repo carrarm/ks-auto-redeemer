@@ -1,0 +1,8 @@
+### Get active gift codes
+GET https://kingshot.net/api/gift-codes
+
+### Redeem a gift code
+POST https://kingshot.net/api/gift-codes/redeem
+Content-Type: application/json
+
+{ "giftCode": "KS1104", "playerId": "378859123" }

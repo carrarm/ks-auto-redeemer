@@ -190,7 +190,7 @@ async function redeemCodes(codes, player, withStorage = false) {
           const failureCount = (previousFailure?.failureCount ?? 0) + 1;
           failures.push({
             giftCode: code,
-            errorCode: redemptionResult.errorCode,
+            errorCode: redemptionResult.error?.code,
             message: redemptionResult.message,
             failureCount
           });
