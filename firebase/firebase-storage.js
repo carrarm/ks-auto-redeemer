@@ -95,7 +95,7 @@ export async function displaySummary(tag) {
   console.log(`${summary.totalRedeemed} code(s) redeemed`);
   if (summary.usersWithErrors) {
     console.log('These users failed to redeem one or more codes:');
-    const users = summary.usersWithErrors.map((user) => user.padEnd(25, ' '));
+    const users = Object.keys(summary.usersWithErrors).map((user) => user.padEnd(25, ' '));
     console.log(users.join(' '));
   }
 }
