@@ -180,7 +180,7 @@ async function redeemCodes(codes, player, withStorage = false) {
 
       if (redemptionResult.invalid) {
         invalidCodes.push(code);
-      } else if (redemptionResult.errorCode) {
+      } else if (redemptionResult.error?.code) {
         if (redemptionResult.message?.includes('Too many redemption attempts')) {
           console.log(`[${player.player}] Too many redemption attempts while redeeming ${code}. ${retryAttempts ? '' : 'Retrying once in 2m...'}`);
           retryAttempts++;
