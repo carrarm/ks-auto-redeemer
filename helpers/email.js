@@ -46,7 +46,7 @@ export async function sendReport(codes, report) {
     await transporter.sendMail({
       from: `"ks-auto-redeemer" <${process.env.SMTP_AUTH_USER}>`,
       to: process.env.MAIL_TO,
-      subject: `Redemption report - ${codes.length} codes - ${mergedSummary.totalRedeemed} redeemed/${mergedSummary.usersWithErrors.length} failed`,
+      subject: `Redemption report - ${codes.length} codes - ${mergedSummary.totalRedeemed} redeemed/${usersWithErrors.length} failed`,
       html: `
 <ul>
   <li>Codes: ${codes.join(', ')}</li>
