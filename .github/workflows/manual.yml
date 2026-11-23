@@ -13,7 +13,7 @@ on:
       alliances:
         description: 'Alliances to redeem for'
         required: false
-        default: 'FRA,emr'
+        default: 'FRA,emr,BRO'
       kingdomId:
         description: 'Kingdom ID of the alliances'
         required: false
