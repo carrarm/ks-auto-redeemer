@@ -39,4 +39,4 @@ jobs:
       - name: Start redeem
         run: |
           npm ci
-          node ks-redeemer.js --alliances=FRA,emr --kid=2363 --firebase
+          node ks-redeemer.js --alliances=FRA,emr,BRO --kid=2363 --firebase
